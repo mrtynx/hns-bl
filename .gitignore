@@ -2,3 +2,4 @@
 1/model.pt
 1/runs
 1/runs/**
+1/__pycache__/**
