@@ -1,4 +1,5 @@
 import numpy as np
+from sklearn.model_selection import train_test_split
 import torch
 import torchvision.transforms as transforms
 from scipy.io import loadmat
@@ -7,10 +8,9 @@ from torch.utils.data.dataset import Dataset
 
 
 class notMNIST(Dataset):
-    def __init__(self, path):
-        self.data = loadmat(path)
-        self.images = self.data["images"]
-        self.labels = self.data["labels"]
+    def __init__(self, data, labels):
+        self.images = data
+        self.labels = labels
 
         self.transformation = transforms.Compose(
             [
@@ -18,12 +18,6 @@ class notMNIST(Dataset):
                 transforms.ConvertImageDtype(dtype=torch.float32),
             ]
         )
-
-        self.__format_images()
-
-    def __format_images(self):
-        self.images = [self.images[:, :, i] for i in range(0, self.images.shape[2])]
-        self.images = np.asarray(self.images)
 
     def __len__(self):
         return len(self.labels)

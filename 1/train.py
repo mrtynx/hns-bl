@@ -1,14 +1,16 @@
 import argparse
 import datetime
+import os
 import pickle
 
 import numpy as np
 import torch
-from dataset import notMNIST
-from models import *
-from torch.utils.data import DataLoader, random_split, Subset
+from torch.utils.data import DataLoader, Subset, random_split
 from torch.utils.tensorboard import SummaryWriter
 from tqdm.notebook import tqdm, trange
+
+# from dataset import notMNIST
+from models import *
 
 parser = argparse.ArgumentParser()
 
@@ -17,7 +19,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "--model",
-    choices=["cnn1", "cnn2", "cnn3", "mlp"],
+    choices=["cnn1", "cnn2", "cnn3", "mlp", "cnn1_no_drop"],
     default="mlp",
     help="Choose a model",
 )
@@ -27,12 +29,13 @@ parser.add_argument(
     default=0.8,
     help="Fraction of train data [default 0.8]",
 )
-parser.add_argument("--optim", choices=["sgd, adam"], default="adam")
+parser.add_argument("--optim", choices=["sgd", "adam"], default="adam")
 parser.add_argument("--batch_size", type=int, default=128)
 parser.add_argument("--lr", type=float, default=0.001)
 parser.add_argument("--epochs", type=int, default=10)
 parser.add_argument("--save_model", type=bool, default=True)
 parser.add_argument("--use_cuda", type=bool, default=True)
+parser.add_argument("--use_dropout", choices=["0", "1"], default="1")
 
 
 def main():
@@ -44,24 +47,41 @@ def main():
     N_EPOCHS = args.epochs
     LEARNING_RATE = args.lr
     LOG_FOLDER = "runs"
+    USE_DROPOUT = int(args.use_dropout)
 
     time = datetime.datetime.now()
-    time_str = time.strftime("%d-%m-%H-%M")
+    # time_str = time.strftime("%d-%m-%H-%M")
+    time_str = ""
 
     if args.model == "cnn1":
         model = CustomCNN()
-        savedir = f"{LOG_FOLDER}/cnn1/{time_str}"
+        savedir = "cnn1"
     elif args.model == "cnn2":
         model = CustomCNN2()
-        savedir = f"{LOG_FOLDER}/cnn2/{time_str}"
+        savedir = "cnn2"
     elif args.model == "cnn3":
         model = CustomCNN3()
-        savedir = f"{LOG_FOLDER}/cnn3/{time_str}"
+        savedir = "cnn3"
+    elif args.model == "cnn1_no_drop":
+        model = CustomCNN_NO_DROPOUT()
+        savedir = "cnn1"
     else:
         model = MLP()
-        savedir = f"{LOG_FOLDER}/mlp/{time_str}"
+        savedir = "mlp"
 
-    writer = SummaryWriter(savedir + "/writer")
+    if args.optim == "adam":
+        LOG_FOLDER += f"/{savedir}"
+    else:
+        LOG_FOLDER += f"/{savedir}_sgd"
+
+    if not USE_DROPOUT:
+        LOG_FOLDER += f"_no_dropout"
+
+    LOG_FOLDER += f"_{str(SPLIT)}"
+
+    if not os.path.exists(LOG_FOLDER):
+        os.makedirs(LOG_FOLDER)
+    # writer = SummaryWriter(savedir + "/writer")
 
     if args.optim == "sgd":
         optimizer = torch.optim.SGD(model.parameters(), lr=LEARNING_RATE)
@@ -73,15 +93,32 @@ def main():
     else:
         device = torch.device("cpu")
 
-    dataset = notMNIST(DATA_PATH)
-    split_idx = int(len(dataset) * SPLIT)
+    # %%
+    from scipy.io import loadmat
+    from sklearn.model_selection import train_test_split
 
-    train_ds = Subset(dataset, np.arange(0, split_idx))
-    test_ds = Subset(dataset, np.arange(split_idx, len(dataset)))
+    from dataset import notMNIST
 
-    print(len(train_ds))
-    trainloader = DataLoader(dataset=train_ds, batch_size=BATCH_SIZE, shuffle=True)
-    testloader = DataLoader(dataset=test_ds, batch_size=BATCH_SIZE, shuffle=False)
+    data = loadmat("notMNIST_small.mat")
+    print(data.keys())
+
+    images = data["images"]
+    labels = data["labels"]
+
+    print(images.shape)
+    images = [images[:, :, i] for i in range(0, images.shape[2])]
+    images = np.asarray(images)
+    print(images.shape)
+    x_train, x_test, y_train, y_test = train_test_split(
+        images, labels, train_size=SPLIT, shuffle=True
+    )
+
+    train_dataset = notMNIST(x_train, y_train)
+    test_dataset = notMNIST(x_test, y_test)
+
+    trainloader = DataLoader(dataset=train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+
+    # %%
 
     criterion = torch.nn.CrossEntropyLoss()
 
@@ -95,7 +132,7 @@ def main():
 
     for epoch in trange(1, N_EPOCHS + 1, desc="1st loop"):
         epoch_loss = 0
-        n_batches = len(train_ds) // BATCH_SIZE
+        n_batches = len(train_dataset) // BATCH_SIZE
         correct = 0
         total = 0
         accuracy_train = 0
@@ -133,11 +170,7 @@ def main():
             if step % n_batches == 0 and step != 0:
                 epoch_loss = epoch_loss / n_batches
 
-                # writer.add_scalar(
-                #     'training loss',
-                #     epoch_loss,
-                #     epoch
-                # )
+                # writer.add_scalar("training loss", epoch_loss, epoch)
 
                 acc_history.append(accuracy_train)
                 loss_history.append(epoch_loss)
@@ -156,19 +189,23 @@ def main():
             final_labels += labels.tolist()
             torch.cuda.empty_cache()
 
-            writer.add_hparams(
-                {
-                    "optimizer": optimizer.__class__.__name__,
-                    "lr": LEARNING_RATE,
-                    "batch_size": BATCH_SIZE,
-                },
-                {
-                    "hparam/train/accuracy": accuracy_train,
-                },
-            )
-            writer.close()
+            # writer.add_hparams(
+            #     {
+            #         "optimizer": optimizer.__class__.__name__,
+            #         "lr": LEARNING_RATE,
+            #         "batch_size": BATCH_SIZE,
+            #     },
+            #     {
+            #         "hparam/train/accuracy": accuracy_train,
+            #     },
+            # )
+            # writer.close()
 
-    torch.save(model.state_dict(), f"{savedir}/model.pt")
+    torch.save(model.state_dict(), f"{LOG_FOLDER}/model.pt")
+
+    train_metrics = {"acc_history": acc_history, "loss_history": loss_history}
+    with open(f"{LOG_FOLDER}/train_metrics.pkl", "wb") as f:
+        pickle.dump(train_metrics, f)
 
 
 if __name__ == "__main__":
