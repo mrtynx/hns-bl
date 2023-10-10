@@ -72,7 +72,7 @@ def main():
     if args.optim == "adam":
         LOG_FOLDER += f"/{savedir}"
     else:
-        LOG_FOLDER += f"/{savedir}_sgd"
+        LOG_FOLDER += f"/{savedir}_sgdm"
 
     if not USE_DROPOUT:
         LOG_FOLDER += f"_no_dropout"
@@ -84,7 +84,7 @@ def main():
     # writer = SummaryWriter(savedir + "/writer")
 
     if args.optim == "sgd":
-        optimizer = torch.optim.SGD(model.parameters(), lr=LEARNING_RATE)
+        optimizer = torch.optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=0.9)
     else:
         optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
