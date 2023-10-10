@@ -48,7 +48,7 @@ def main():
         device = torch.device("cpu")
 
     
-    output_folder_str="trained_models/" + "savename"
+    output_folder_str="trained_models" 
     
     if not os.path.exists(output_folder_str):
         os.makedirs(output_folder_str)
