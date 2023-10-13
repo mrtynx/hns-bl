@@ -1,8 +1,8 @@
 import numpy as np
-from sklearn.model_selection import train_test_split
 import torch
 import torchvision.transforms as transforms
 from scipy.io import loadmat
+from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, random_split
 from torch.utils.data.dataset import Dataset
 
