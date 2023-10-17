@@ -9,6 +9,11 @@ from torch.utils.data import DataLoader
 
 from torchvision import models
 
+import dataset_architecture as da 
+
+from models import resnet
+
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument(
@@ -32,13 +37,15 @@ def main():
     N_EPOCHS = args.epochs
     LEARNING_RATE = args.lr
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+ 
 
     # models selection
     if args.model == "resnet":
         model = models.resnet18()
-        model.load_state_dict(torch.load("models/resnet.pt"))
+       # model.load_state_dict(torch.load("models/resnet.pt"))
         savename = "resnet"
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     if torch.cuda.is_available():
         device = torch.device("cuda:0")
@@ -51,12 +58,12 @@ def main():
         os.makedirs(output_folder_str)
 
     # getting dataset
-    from dataset_architecture import get_dataset, get_markings
-
-    train_dataset = get_dataset("train")
-    [images, labels] = get_markings()
-
-    trainloader = DataLoader(dataset=train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+    
+    trainloader, _ = da.get_architectural_dataset("C:\\Repositories\\hns\\Dataset_Architektura\\architectural-styles-dataset",
+                                                    resnet.get_resnet_transformation(),
+                                                    BATCH_SIZE,
+                                                    0.4,0)
+   # trainloader = DataLoader(dataset=train_dataset, batch_size=BATCH_SIZE, shuffle=True)
 
     # training itself
     criterion = torch.nn.CrossEntropyLoss()
@@ -71,7 +78,8 @@ def main():
 
     for epoch in range(1, N_EPOCHS + 1):
         epoch_loss = 0
-        n_batches = len(train_dataset) // BATCH_SIZE
+        #n_batches = len(train_dataset) // BATCH_SIZE
+        n_batches = trainloader.n_batches      
         correct = 0
         total = 0
         accuracy_train = 0
