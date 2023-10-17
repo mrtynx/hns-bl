@@ -48,7 +48,7 @@ def _create_splitted_subset(dataset, split_ratio):
     return subset_big, subset_small
 
 
-@jit
+
 def _count_class_samples(dataset, cached=False):
     """Funkcia spocita pocet vzoriek patriacich do kazdej triedy. Pre rychlost pouzivat 'cached=True', no plati to iba na dataset
         architektury. Ak by to z nejakeho dovodu nefungovalo, treba switchnut spat na 'cached=False'.

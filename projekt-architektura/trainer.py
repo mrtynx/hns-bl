@@ -2,6 +2,7 @@ import argparse
 import datetime
 import os
 import pickle
+import time
 
 import numpy as np
 import torch
@@ -12,6 +13,7 @@ from torchvision import models
 import dataset_architecture as da 
 
 from models import resnet
+
 
 
 parser = argparse.ArgumentParser()
@@ -49,8 +51,10 @@ def main():
 
     if torch.cuda.is_available():
         device = torch.device("cuda:0")
+        print("Training on gpu")
     else:
         device = torch.device("cpu")
+        print("Training on cpu")
 
     output_folder_str = "trained_models"
 
@@ -76,27 +80,26 @@ def main():
     final_labels = []
     final_predicted = []
 
+    print("Starting training!")
+
     for epoch in range(1, N_EPOCHS + 1):
         epoch_loss = 0
-        #n_batches = len(train_dataset) // BATCH_SIZE
-        n_batches = trainloader.n_batches      
+        n_batches = len(trainloader) 
         correct = 0
         total = 0
         accuracy_train = 0
 
-        for step, (images, labels) in enumerate(
-            trainloader, desc="Epoch {}/{}".format(epoch, N_EPOCHS)
-        ):
+        for step, (images, labels) in enumerate(trainloader,start=1):
+            
             images = images.to(device)
             labels = labels.to(device)
 
             # Dopredne sirenie,
             # ziskame pravdepodobnosti tried tym, ze posleme do modelu vstupy
             outputs = model(images)
-
             # Vypocitame chybu algoritmu
             loss = criterion(outputs, labels)
-
+ 
             # Uspesnost algoritmu
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
@@ -113,7 +116,7 @@ def main():
 
             # Aktualizacia vah pomocou optimalizatora
             optimizer.step()
-
+  
             if step % n_batches == 0 and step != 0:
                 epoch_loss = epoch_loss / n_batches
 
@@ -131,11 +134,14 @@ def main():
             torch.cuda.empty_cache()
 
     # save_model
-    torch.save(model.state_dict(), f"{output_folder_str}/{savename}/model.pt")
+    if not os.path.exists(f"./{output_folder_str}/{savename}/"):
+        os.makedirs(f"./{output_folder_str}/{savename}/")
+    
+    torch.save(model.state_dict(), f"./{output_folder_str}/{savename}/model.pt")
 
     train_metrics = {"acc_history": acc_history, "loss_history": loss_history}
 
-    with open(f"{output_folder_str}/{savename}/train_metrics.pkl", "wb") as f:
+    with open(f"./{output_folder_str}/{savename}/train_metrics.pkl", "wb") as f:
         pickle.dump(train_metrics, f)
 
 

@@ -1,4 +1,4 @@
-from torchvision import models
+from torchvision import models, transforms
 import torchvision.transforms as transforms
 
 
@@ -14,8 +14,8 @@ def resnet(num_layers=18, weights="DEFAULT", freeze_n_layers=4, out_features=25)
 
 def get_resnet_transformation():
     preprocess = transforms.Compose([
-    transforms.Resize(256),
-    #transforms.CenterCrop(224), #unsure whether this is required
+    transforms.Resize(64), #orig 256
+    transforms.CenterCrop(64), #orig 224
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
