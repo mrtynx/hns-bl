@@ -6,12 +6,12 @@ from torchvision.datasets import ImageFolder
 
 def get_architectural_dataset(root_path, transform, batch_sz, test, val=0.0):
     dataset = ImageFolder(root=root_path, transform=transform)
-    train, _test = _create_splitted_subset(dataset, test)
+    train, _test = _create_split_subset(dataset, test)
 
     dataloader_test = DataLoader(_test, batch_size=batch_sz, shuffle=False)
 
     if val != 0.0:
-        train, _val = _create_splitted_subset(train, val)
+        train, _val = _create_split_subset(train, val)
         dataloader_val = DataLoader(_val, batch_size=batch_sz, shuffle=False)
         dataloader_train = DataLoader(train, batch_size=batch_sz, shuffle=True)
         return dataloader_train, dataloader_test, dataloader_val
@@ -21,12 +21,8 @@ def get_architectural_dataset(root_path, transform, batch_sz, test, val=0.0):
         return dataloader_train, dataloader_test
 
 
-def _create_splitted_subset(dataset, split_ratio):
+def _create_split_subset(dataset, split_ratio):
     """
-    Although multiple verbs end in “t” that are regular such as fit/fitted, admit/admitted,
-    etc. but “split” is not one of them. It is an irregular verb. “Splitted” is an archaic or nonstandard word
-    of the past tense of “split.” Even when typed, it is underlined in red, meaning that it is technically incorrect.
-    “Split” is the best and most recommended word to use rather than the slang word “splitted.”
 
     Rozdeli dataset na trenovacie a testovacie (alebo validacne) v urcitom pomere. Z kazdej triedy zoberie
         posledne vzorky, kde pocet vzoriek zavisi od pomeru rozdelenia.
