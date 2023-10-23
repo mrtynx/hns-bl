@@ -22,7 +22,13 @@ def get_architectural_dataset(root_path, transform, batch_sz, test, val=0.0):
 
 
 def _create_splitted_subset(dataset, split_ratio):
-    """Rozdeli dataset na trenovacie a testovacie (alebo validacne) v urcitom pomere. Z kazdej triedy zoberie
+    """
+    Although multiple verbs end in “t” that are regular such as fit/fitted, admit/admitted,
+    etc. but “split” is not one of them. It is an irregular verb. “Splitted” is an archaic or nonstandard word
+    of the past tense of “split.” Even when typed, it is underlined in red, meaning that it is technically incorrect.
+    “Split” is the best and most recommended word to use rather than the slang word “splitted.”
+
+    Rozdeli dataset na trenovacie a testovacie (alebo validacne) v urcitom pomere. Z kazdej triedy zoberie
         posledne vzorky, kde pocet vzoriek zavisi od pomeru rozdelenia.
 
     Args:
