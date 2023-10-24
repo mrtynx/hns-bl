@@ -1,13 +1,11 @@
 import argparse
-import datetime
 import os
 import pickle
 
-import numpy as np
 import torch
 from models_architecture import *
 from dataset_architecture import get_architectural_dataset
-from torchvision import models, transforms
+from torchvision import transforms
 
 TRAINED_MODELS_DIR = "trained_models"
 DATASET_PTH = "architectural-styles-dataset/"
@@ -49,10 +47,8 @@ def main():
     # models selection
     if args.model == "resnet":
         model = resnet18_architecture()
-        # transform = models.ResNet18_Weights.IMAGENET1K_V1.transforms
     elif args.model == "alexnet":
         model = alexnet_architecture()
-        # transform = models.AlexNet_Weights.IMAGENET1K_V1.transforms
     elif args.model == "inception":
         model = inception_architecture()
     elif args.model == "mobilenet":
@@ -73,10 +69,11 @@ def main():
 
     transform = transforms.Compose(
         [
-            transforms.Resize((224, 224)),
+            transforms.Resize(256, transforms.InterpolationMode.BILINEAR),
+            transforms.CenterCrop(224),
             transforms.ToTensor(),
             transforms.ConvertImageDtype(dtype=torch.float32),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
         ]
     )
 

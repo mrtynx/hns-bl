@@ -1,7 +1,34 @@
 import numpy as np
-from numba import jit
 from torch.utils.data import DataLoader, Subset
 from torchvision.datasets import ImageFolder
+
+ARCHITECTURAL_COUNTS = {
+    0: 392,
+    1: 362,
+    2: 364,
+    3: 405,
+    4: 566,
+    5: 615,
+    6: 456,
+    7: 315,
+    8: 424,
+    9: 312,
+    10: 278,
+    11: 480,
+    12: 335,
+    13: 280,
+    14: 381,
+    15: 331,
+    16: 523,
+    17: 417,
+    18: 382,
+    19: 343,
+    20: 321,
+    21: 720,
+    22: 301,
+    23: 331,
+    24: 455,
+}
 
 
 def get_architectural_dataset(root_path, transform, batch_sz, test, val=0.0):
@@ -57,33 +84,8 @@ def _count_class_samples(dataset, cached=False):
     """
 
     if cached:
-        return {
-            0: 392,
-            1: 362,
-            2: 364,
-            3: 405,
-            4: 566,
-            5: 615,
-            6: 456,
-            7: 315,
-            8: 424,
-            9: 312,
-            10: 278,
-            11: 480,
-            12: 335,
-            13: 280,
-            14: 381,
-            15: 331,
-            16: 523,
-            17: 417,
-            18: 382,
-            19: 343,
-            20: 321,
-            21: 720,
-            22: 301,
-            23: 331,
-            24: 455,
-        }
+        global ARCHITECTURAL_COUNTS
+        return ARCHITECTURAL_COUNTS
     else:
         class_counts = {}
         for _, label in dataset:
@@ -93,6 +95,14 @@ def _count_class_samples(dataset, cached=False):
                 class_counts[label] += 1
 
         return class_counts
+
+
+def _sum_count_samples(class_counts):
+    total = 0
+    for val in class_counts.values():
+        total += val
+
+    return total
 
 
 def _get_classes_limit_indices(class_counts):
@@ -146,15 +156,16 @@ def _split_dataset_indices(indices, split_ratio):
     Returns:
         dict, dict: Vrati orezany dataset a zaroven odrezok z datasetu
     """
+
     selection = {}
-    splitted_indices = {}
+    split_indices = {}
     for i in indices:
         working_arr = indices[str(i)]
         num_to_select = int(len(working_arr) * split_ratio)
         selection[str(i)] = working_arr[-num_to_select:]
-        splitted_indices[str(i)] = working_arr[:-num_to_select]
+        split_indices[str(i)] = working_arr[:-num_to_select]
 
-    return splitted_indices, selection
+    return split_indices, selection
 
 
 def _concat_indices_into_list(indices):
