@@ -105,7 +105,7 @@ def main():
 
         if UNFREEZE_EPOCH != 0 and epoch == UNFREEZE_EPOCH + 1:
             model = unfreeze_layers(model)
-            print(f"\nUnfreezing {MODEL_NAME} feature layers \n")
+            print(f"\n\rUnfreezing {MODEL_NAME} feature layers \n", end="", flush=True)
 
         for step, (images, labels) in enumerate(trainloader):
             images = images.to(device)
@@ -129,7 +129,7 @@ def main():
             optimizer.step()
 
             print(
-                f"\rEpoch: {epoch}/{N_EPOCHS} | Batch {step} / {n_batches} | Accuracy {accuracy_train:.2f}",
+                f"\rEpoch: {epoch}/{N_EPOCHS} | Batch {step + 1} / {n_batches} | Accuracy {accuracy_train:.2f}",
                 end="",
                 flush=True,
             )
@@ -143,7 +143,7 @@ def main():
 
             final_predicted += predicted.tolist()
             final_labels += labels.tolist()
-            torch.cuda.empty_cache()
+            # torch.cuda.empty_cache()
 
     # save_model
     if SAVE_MODEL:

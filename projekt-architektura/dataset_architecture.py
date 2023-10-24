@@ -35,16 +35,24 @@ def get_architectural_dataset(root_path, transform, batch_sz, test, val=0.0):
     dataset = ImageFolder(root=root_path, transform=transform)
     train, _test = _create_split_subset(dataset, test)
 
-    dataloader_test = DataLoader(_test, batch_size=batch_sz, shuffle=False)
+    dataloader_test = DataLoader(
+        _test, batch_size=batch_sz, shuffle=False, num_workers=8, pin_memory=True
+    )
 
     if val != 0.0:
         train, _val = _create_split_subset(train, val)
-        dataloader_val = DataLoader(_val, batch_size=batch_sz, shuffle=False)
-        dataloader_train = DataLoader(train, batch_size=batch_sz, shuffle=True)
+        dataloader_val = DataLoader(
+            _val, batch_size=batch_sz, shuffle=False, num_workers=8, pin_memory=True
+        )
+        dataloader_train = DataLoader(
+            train, batch_size=batch_sz, shuffle=True, num_workers=8, pin_memory=True
+        )
         return dataloader_train, dataloader_test, dataloader_val
 
     else:
-        dataloader_train = DataLoader(train, batch_size=batch_sz, shuffle=True)
+        dataloader_train = DataLoader(
+            train, batch_size=batch_sz, shuffle=True, num_workers=8, pin_memory=True
+        )
         return dataloader_train, dataloader_test
 
 
