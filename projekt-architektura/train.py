@@ -25,14 +25,14 @@ parser.add_argument("--lr", type=float, default=0.001)
 parser.add_argument("--epochs", type=int, default=10)
 parser.add_argument("--save_model", choices=["0", "1"], default="1")
 parser.add_argument("--test_split", type=float, default=0.2)
-# parser.add_argument("--val_split", type=float, default=0)
+parser.add_argument("--trial_number", choices=["1", "2", "3"], default="1")
+parser.add_argument("--augment", choices=["0", "1"], default="0")
 parser.add_argument(
     "--unfreeze",
     type=int,
     default=0,
     help="Unfreeze feature layers after N batches. (N must be lower than total batches)",
 )
-parser.add_argument("--trial_number", choices=["1", "2", "3"], default="1")
 
 
 def main():
@@ -45,6 +45,7 @@ def main():
     UNFREEZE_EPOCH = args.unfreeze
     SAVE_MODEL = int(args.save_model)
     TRIAL_NUM = args.trial_number
+    AUGMENT = int(args.augment)
 
     # models selection
     if args.model == "resnet":
@@ -81,6 +82,18 @@ def main():
         ]
     )
 
+    if AUGMENT:
+        augmentations = transforms.Compose(
+            [
+                transforms.v2.RandomPosterize(bits=2),
+                transforms.v2.RandomAdjustSharpness(sharpness_factor=2),
+                transforms.v2.RandomAutocontrast(),
+                transforms.v2.RandomEqualize(),
+            ]
+        )
+
+        transform = transforms.Compose([transform, augmentations])
+
     trainloader, testloader = get_architectural_dataset(
         root_path="architectural-styles-dataset/",
         transform=transform,
@@ -93,7 +106,6 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     model = model.to(device)
-    model.train()
 
     acc_history = []
     loss_history = []
@@ -106,6 +118,8 @@ def main():
         correct = 0
         total = 0
         accuracy_train = 0
+
+        model.train()
 
         if UNFREEZE_EPOCH != 0 and epoch == UNFREEZE_EPOCH + 1:
             model = unfreeze_layers(model)
@@ -133,21 +147,38 @@ def main():
             optimizer.step()
 
             print(
-                f"\rEpoch: {epoch}/{N_EPOCHS} | Batch {step + 1} / {n_batches} | Accuracy {accuracy_train:.2f}",
+                f"\rEpoch: {epoch}/{N_EPOCHS} | Batch {step + 1} / {n_batches} | Train Accuracy {accuracy_train:.2f}",
                 end="",
                 flush=True,
             )
 
-            if (step + 1) % n_batches == 0 and step != 0:
-                epoch_loss = epoch_loss / n_batches
+        epoch_loss = epoch_loss / n_batches
 
-                acc_history.append(accuracy_train)
-                loss_history.append(epoch_loss)
-                epoch_loss = 0
+        acc_history.append(accuracy_train)
+        loss_history.append(epoch_loss)
+        epoch_loss = 0
 
-            final_predicted += predicted.tolist()
-            final_labels += labels.tolist()
-            torch.cuda.empty_cache()
+        final_predicted += predicted.tolist()
+        final_labels += labels.tolist()
+
+        model.eval()
+        val_correct = 0
+        val_total = 0
+        with torch.no_grad():
+            for batch_idx, (data, target) in enumerate(testloader):
+                data = data.to(device)
+                target = target.to(device)
+                output = model(data)
+                _, predicted = torch.max(output.data, 1)
+                val_total += target.size(0)
+                val_correct += (predicted == target).sum().item()
+
+        val_accuracy = 100 * val_correct / val_total
+        print(
+            f" | Val Accuracy {val_accuracy:.2f}",
+        )
+
+        torch.cuda.empty_cache()
 
     # save_model
     if SAVE_MODEL:
