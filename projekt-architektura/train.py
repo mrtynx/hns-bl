@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument(
     "--model",
-    choices=["resnet", "alexnet", "inception", "mobilenet"],
+    choices=["resnet", "alexnet", "inception", "mobilenet", "series-parallel"],
     default="resnet",
     help="Choose a model",
 )
@@ -29,9 +29,10 @@ parser.add_argument("--test_split", type=float, default=0.2)
 parser.add_argument(
     "--unfreeze",
     type=int,
-    default=-0,
+    default=0,
     help="Unfreeze feature layers after N batches. (N must be lower than total batches)",
 )
+parser.add_argument("--trial_number", choices=["1", "2", "3"], default="1")
 
 
 def main():
@@ -43,6 +44,7 @@ def main():
     TEST_SPLIT = args.test_split
     UNFREEZE_EPOCH = args.unfreeze
     SAVE_MODEL = int(args.save_model)
+    TRIAL_NUM = args.trial_number
 
     # models selection
     if args.model == "resnet":
@@ -53,6 +55,8 @@ def main():
         model = inception_architecture()
     elif args.model == "mobilenet":
         model = mobilenet_architecture()
+    # elif args.model == "series-parallel":
+    #     model = DeepSeriesParallelCNN(num_classes=25)
 
     MODEL_NAME = model.__class__.__name__
 
@@ -134,7 +138,7 @@ def main():
                 flush=True,
             )
 
-            if step % n_batches == 0 and step != 0:
+            if (step + 1) % n_batches == 0 and step != 0:
                 epoch_loss = epoch_loss / n_batches
 
                 acc_history.append(accuracy_train)
@@ -143,18 +147,19 @@ def main():
 
             final_predicted += predicted.tolist()
             final_labels += labels.tolist()
-            # torch.cuda.empty_cache()
+            torch.cuda.empty_cache()
 
     # save_model
     if SAVE_MODEL:
-        if not os.path.exists(f"{TRAINED_MODELS_DIR}/{MODEL_NAME}"):
-            os.makedirs(f"{TRAINED_MODELS_DIR}/{MODEL_NAME}")
+        SAVEDIR = f"{TRAINED_MODELS_DIR}/{MODEL_NAME}/{TRIAL_NUM}"
+        if not os.path.exists(SAVEDIR):
+            os.makedirs(SAVEDIR)
 
-        torch.save(model.state_dict(), f"{TRAINED_MODELS_DIR}/{MODEL_NAME}/model.pt")
+        torch.save(model.state_dict(), f"{SAVEDIR}/model.pt")
 
         train_metrics = {"acc_history": acc_history, "loss_history": loss_history}
 
-        with open(f"{TRAINED_MODELS_DIR}/{MODEL_NAME}/train_metrics.pkl", "wb") as f:
+        with open(f"{SAVEDIR}/train_metrics.pkl", "wb") as f:
             pickle.dump(train_metrics, f)
 
 
