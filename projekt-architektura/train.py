@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument(
     "--model",
-    choices=["resnet", "alexnet"],
+    choices=["resnet", "alexnet", "inception", "mobilenet"],
     default="resnet",
     help="Choose a model",
 )
@@ -49,12 +49,19 @@ def main():
     # models selection
     if args.model == "resnet":
         model = resnet18_architecture()
-        transform = models.ResNet18_Weights.IMAGENET1K_V1.transforms
+        # transform = models.ResNet18_Weights.IMAGENET1K_V1.transforms
     elif args.model == "alexnet":
         model = alexnet_architecture()
-        transform = models.AlexNet_Weights.IMAGENET1K_V1.transforms
+        # transform = models.AlexNet_Weights.IMAGENET1K_V1.transforms
+    elif args.model == "inception":
+        model = inception_architecture()
+    elif args.model == "mobilenet":
+        model = mobilenet_architecture()
 
     MODEL_NAME = model.__class__.__name__
+
+    if UNFREEZE_EPOCH != 0:
+        model = freeze_feature_layers(model)
 
     if torch.cuda.is_available():
         device = torch.device("cuda:0")
