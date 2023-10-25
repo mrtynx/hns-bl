@@ -96,6 +96,7 @@ def main():
 
     trainloader, testloader = get_architectural_dataset(
         root_path="architectural-styles-dataset/",
+        #root_path="C:\\Repositories\\hns\\Dataset_Architektura\\architectural-styles-dataset", 
         transform=transform,
         batch_sz=BATCH_SIZE,
         test=TEST_SPLIT,
