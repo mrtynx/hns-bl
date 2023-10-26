@@ -28,6 +28,7 @@ parser.add_argument(
         "inception",
         "mobilenet",
         "series-parallel",
+        "serial"
     ],
     default="resnet18",
     help="Choose a model",
@@ -78,8 +79,10 @@ def main():
         model = inception_architecture()
     elif args.model == "mobilenet":
         model = mobilenet_architecture()
-    # elif args.model == "series-parallel":
-    #     model = DeepSeriesParallelCNN(num_classes=25)
+    elif args.model == "series-parallel":
+         model = DeepSeriesParallelCNN(num_classes=25)
+    elif args.model == "serial":
+        model = DeepSerialCNN(num_classes=25)
 
     if COMPILE:
         model = torch.compile(model, mode="reduce-overhead")
@@ -219,6 +222,8 @@ def main():
         val_correct = 0
         val_total = 0
         val_loss = 0
+        n_batches = len(testloader)
+
 
         with torch.no_grad():
             for _, (data, target) in enumerate(testloader):

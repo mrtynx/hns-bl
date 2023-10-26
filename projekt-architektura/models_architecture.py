@@ -130,3 +130,122 @@ def unfreeze_resnet(model):
         param.requires_grad = True
 
     return model
+
+
+class DeepSeriesParallelCNN(torch.nn.Module):
+    def __init__(self,num_classes=25):
+        super(DeepSeriesParallelCNN, self).__init__()
+
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(3, 6, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(6),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        )
+ 
+        self.conv2a = nn.Sequential(
+            nn.Conv2d(6, 6, kernel_size=3),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=4, stride=4)
+        )
+
+        self.conv2b = nn.Sequential(
+            nn.Conv2d(6, 6, kernel_size=5),
+            nn.ReLU(),
+            nn.BatchNorm2d(6),
+            nn.Conv2d(6, 6, kernel_size=5),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=4, stride=4)
+        )
+
+        self.conv2c = nn.Sequential(
+            nn.Conv2d(6, 6, kernel_size=7),
+            nn.ReLU(),
+            nn.BatchNorm2d(6),
+            nn.Conv2d(6, 6, kernel_size=7),
+            nn.ReLU(),
+            nn.BatchNorm2d(6),
+            nn.Conv2d(6, 6, kernel_size=7),
+            nn.ReLU(),
+            nn.BatchNorm2d(6),
+            nn.MaxPool2d(kernel_size=4, stride=4)
+        )
+
+        self.fc_layers = nn.Sequential(
+            nn.Dropout(0.5),
+            nn.Linear(11604, 600),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(600, 600),
+            nn.ReLU(),
+            nn.Linear(600, 300),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(300, 60),
+            nn.ReLU(),
+            nn.Linear(60, num_classes),
+        )
+
+    def forward(self, x):
+        outM = self.conv1(x)
+        outA = self.conv2a(outM)
+        outB = self.conv2b(outM)
+        outC = self.conv2c(outM)
+        outA = torch.flatten(outA, 1)
+        outB = torch.flatten(outB, 1)
+        outC = torch.flatten(outC, 1)
+        out = torch.cat([outA, outB, outC], dim=1)
+        out = self.fc_layers(out)
+        out = F.log_softmax(out, dim=1)
+        return out   
+    
+
+class  DeepSerialCNN(torch.nn.Module):
+    def __init__(self,num_classes=25):
+        super(DeepSerialCNN, self).__init__()
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(3, 12, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(12),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+        )
+
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(12, 24, kernel_size=5, padding=2),
+            nn.ReLU(),
+            nn.BatchNorm2d(24),
+            nn.AvgPool2d(kernel_size=2, stride=1)
+        )
+
+        self.conv3 = nn.Sequential(
+            nn.Conv2d(24, 24, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(24),
+            nn.AvgPool2d(kernel_size=2, stride=1),
+            nn.MaxPool2d(kernel_size=4, stride=4)
+        )
+
+        self.fc_layers = nn.Sequential(
+            nn.Dropout(0.4),
+            nn.Linear(17496, 600),
+            nn.ReLU(),
+            nn.Dropout(0.4),
+            nn.Linear(600, 600),
+            nn.ReLU(),
+            nn.Linear(600, 300),
+            nn.ReLU(),
+            nn.Linear(300, 100),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.Linear(100, num_classes),
+        )
+
+    def forward(self, x):
+        out = self.conv1(x)
+        out = self.conv2(out)
+        out = self.conv3(out)
+        out = torch.flatten(out, 1)
+        out = self.fc_layers(out)
+        out = F.log_softmax(out, dim=1)
+        return out    
+
