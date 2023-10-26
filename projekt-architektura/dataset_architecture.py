@@ -1,5 +1,6 @@
 import numpy as np
-from torch.utils.data import DataLoader, Subset
+import torch
+from torch.utils.data import DataLoader, Subset, random_split
 from torchvision.datasets import ImageFolder
 
 ARCHITECTURAL_COUNTS = {
@@ -29,6 +30,22 @@ ARCHITECTURAL_COUNTS = {
     23: 331,
     24: 455,
 }
+
+
+def get_random_split_arch_dataset(root_path, transform, split, seed):
+    dataset = ImageFolder(root=root_path, transform=transform)
+
+    train_split = int(np.ceil(len(dataset) * split))
+    test_split = int(np.fix(len(dataset) * (1 - split)))
+
+    print(f"{train_split}, {test_split}")
+    train_dataset, test_dataset = random_split(
+        dataset=dataset,
+        lengths=[train_split, test_split],
+        generator=torch.Generator().manual_seed(seed),
+    )
+
+    return train_dataset, test_dataset
 
 
 def get_architectural_dataset(root_path, transform, batch_sz, test, val=0.0):

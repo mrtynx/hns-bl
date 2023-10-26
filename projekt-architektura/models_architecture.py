@@ -82,6 +82,7 @@ def alexnet_architecture():
 
 def inception_architecture():
     model = models.inception_v3(weights="DEFAULT")
+    # model.Conv2d_1a_3x3.conv.padding = (1, 1)
     model.fc.out_features = 25
 
     return model
