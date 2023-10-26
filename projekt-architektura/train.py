@@ -27,6 +27,7 @@ parser.add_argument("--save_model", choices=["0", "1"], default="1")
 parser.add_argument("--test_split", type=float, default=0.2)
 parser.add_argument("--trial_number", choices=["1", "2", "3"], default="1")
 parser.add_argument("--augment", choices=["0", "1"], default="0")
+parser.add_argument("--compile", choices=["0", "1"], default="0")
 parser.add_argument(
     "--unfreeze",
     type=int,
@@ -46,10 +47,15 @@ def main():
     SAVE_MODEL = int(args.save_model)
     TRIAL_NUM = args.trial_number
     AUGMENT = int(args.augment)
+    COMPILE = int(args.compile)
 
     # models selection
-    if args.model == "resnet":
-        model = resnet18_architecture()
+    if (
+        args.model == "resnet18"
+        or args.model == "resnet50"
+        or args.model == "resnet152"
+    ):
+        model = resnet_architecture(args.model)
     elif args.model == "alexnet":
         model = alexnet_architecture()
     elif args.model == "inception":
@@ -58,6 +64,10 @@ def main():
         model = mobilenet_architecture()
     # elif args.model == "series-parallel":
     #     model = DeepSeriesParallelCNN(num_classes=25)
+
+    if COMPILE:
+        model = torch.compile(model, mode="reduce-overhead")
+        torch.set_float32_matmul_precision("high")
 
     MODEL_NAME = model.__class__.__name__
 
@@ -96,7 +106,7 @@ def main():
 
     trainloader, testloader = get_architectural_dataset(
         root_path="architectural-styles-dataset/",
-        #root_path="C:\\Repositories\\hns\\Dataset_Architektura\\architectural-styles-dataset", 
+        # root_path="C:\\Repositories\\hns\\Dataset_Architektura\\architectural-styles-dataset",
         transform=transform,
         batch_sz=BATCH_SIZE,
         test=TEST_SPLIT,
@@ -174,7 +184,7 @@ def main():
                 val_total += target.size(0)
                 val_correct += (predicted == target).sum().item()
 
-        val_accuracy = 100 * val_correct / val_total
+                val_accuracy = val_correct / val_total
         print(
             f" | Val Accuracy {val_accuracy:.2f}",
         )
