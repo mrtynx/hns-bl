@@ -32,13 +32,25 @@ ARCHITECTURAL_COUNTS = {
 }
 
 
+def get_classes_weights():
+    global ARCHITECTURAL_COUNTS
+    total = _sum_count_samples(ARCHITECTURAL_COUNTS)
+    weights = []
+    for val in ARCHITECTURAL_COUNTS.values():
+        weights.append(total / val)
+
+    weights = np.array(weights, dtype=np.float32)
+
+    return weights / np.max(weights)
+
+
 def get_random_split_arch_dataset(root_path, transform, split, seed):
     dataset = ImageFolder(root=root_path, transform=transform)
 
     train_split = int(np.ceil(len(dataset) * split))
     test_split = int(np.fix(len(dataset) * (1 - split)))
 
-    print(f"{train_split}, {test_split}")
+    print(f"Train size : {train_split}, Test size : {test_split}")
     train_dataset, test_dataset = random_split(
         dataset=dataset,
         lengths=[train_split, test_split],

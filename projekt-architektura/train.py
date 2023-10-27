@@ -6,6 +6,7 @@ import torch
 from dataset_architecture import (
     get_architectural_dataset,
     get_random_split_arch_dataset,
+    get_classes_weights,
 )
 from early_stopping import EarlyStopping
 from models_architecture import *
@@ -19,7 +20,7 @@ DATASET_PTH = "architectural-styles-dataset/"
 parser = argparse.ArgumentParser()
 
 parser.add_argument(
-    "--model",
+    "-model",
     choices=[
         "resnet18",
         "resnet50",
@@ -33,18 +34,18 @@ parser.add_argument(
     help="Choose a model",
 )
 
-parser.add_argument("--batch_size", type=int, default=32)
-parser.add_argument("--lr", type=float, default=0.001)
-parser.add_argument("--epochs", type=int, default=10)
-parser.add_argument("--save_model", choices=["0", "1"], default="1")
-parser.add_argument("--test_split", type=float, default=0.2)
-parser.add_argument("--trial_number", choices=["1", "2", "3"], default="1")
-parser.add_argument("--augment", choices=["0", "1"], default="0")
-parser.add_argument("--compile", choices=["0", "1"], default="0")
-parser.add_argument("--patience", type=int, default=7)
-
+parser.add_argument("-batch_size", type=int, default=32)
+parser.add_argument("-lr", type=float, default=0.00001)
+parser.add_argument("-epochs", type=int, default=10)
+parser.add_argument("-no_save", action="store_false")
+parser.add_argument("-test_split", type=float, default=0.2)
+parser.add_argument("-trial_num", choices=["1", "2", "3"], default="1")
+parser.add_argument("-augment", action="store_true")
+parser.add_argument("-compile", action="store_true")
+parser.add_argument("-patience", type=int, default=0)
+parser.add_argument("-uniform", action="store_true")
 parser.add_argument(
-    "--unfreeze",
+    "-unfreeze",
     type=int,
     default=0,
     help="Unfreeze feature layers after N batches. (N must be lower than total batches)",
@@ -59,11 +60,12 @@ def main():
     LEARNING_RATE = args.lr
     TEST_SPLIT = args.test_split
     UNFREEZE_EPOCH = args.unfreeze
-    SAVE_MODEL = int(args.save_model)
-    TRIAL_NUM = args.trial_number
-    AUGMENT = int(args.augment)
-    COMPILE = int(args.compile)
+    SAVE_MODEL = args.no_save
+    TRIAL_NUM = args.trial_num
+    AUGMENT = args.augment
+    COMPILE = args.compile
     PATIENCE = args.patience
+    UNIFORM = args.uniform
 
     # models selection
     if (
@@ -102,8 +104,8 @@ def main():
         RESIZE = (299, 299)
         CROP = (299, 299)
     else:
-        RESIZE = (256, 256)
-        CROP = (224, 224)
+        RESIZE = (512, 512)
+        CROP = (448, 448)
 
     transform = transforms.Compose(
         [
@@ -115,43 +117,54 @@ def main():
         ]
     )
 
-    # if AUGMENT:
-    #     augmentations = transforms.Compose(
-    #         [
-    #             transforms.v2.RandomPosterize(bits=2),
-    #             transforms.v2.RandomAdjustSharpness(sharpness_factor=2),
-    #             transforms.v2.RandomAutocontrast(),
-    #             transforms.v2.RandomEqualize(),
-    #         ]
-    #     )
+    if AUGMENT:
+        augmentations = transforms.Compose(
+            [
+                transforms.v2.RandomPosterize(bits=2),
+                transforms.v2.RandomAdjustSharpness(sharpness_factor=2),
+                transforms.v2.RandomAutocontrast(),
+                transforms.v2.RandomEqualize(),
+            ]
+        )
 
-    #     transform = transforms.Compose([transform, augmentations])
+        transform = transforms.Compose([transform, augmentations])
 
-    train_ds, test_ds = get_random_split_arch_dataset(
-        "architectural-styles-dataset/",
-        transform=transform,
-        split=1 - TEST_SPLIT,
-        seed=42,
-    )
-
-    trainloader = DataLoader(
-        train_ds, batch_size=BATCH_SIZE, shuffle=True, num_workers=8, pin_memory=True
-    )
-    testloader = DataLoader(test_ds, batch_size=BATCH_SIZE, shuffle=False)
-
-    # trainloader, testloader = get_architectural_dataset(
-    #     root_path="architectural-styles-dataset/",
-    #     # root_path="C:\\Repositories\\hns\\Dataset_Architektura\\architectural-styles-dataset",
-    #     transform=transform,
-    #     batch_sz=BATCH_SIZE,
-    #     test=TEST_SPLIT,
-    # )
+    if UNIFORM:
+        trainloader, testloader = get_architectural_dataset(
+            root_path="architectural-styles-dataset/",
+            # root_path="C:\\Repositories\\hns\\Dataset_Architektura\\architectural-styles-dataset",
+            transform=transform,
+            batch_sz=BATCH_SIZE,
+            test=TEST_SPLIT,
+        )
+    else:
+        train_ds, test_ds = get_random_split_arch_dataset(
+            "architectural-styles-dataset/",
+            transform=transform,
+            split=1 - TEST_SPLIT,
+            seed=420,
+        )
+        trainloader = DataLoader(
+            train_ds,
+            batch_size=BATCH_SIZE,
+            shuffle=True,
+            num_workers=8,
+            pin_memory=True,
+        )
+        testloader = DataLoader(
+            test_ds,
+            batch_size=BATCH_SIZE,
+            shuffle=False,
+            num_workers=8,
+            pin_memory=True,
+        )
 
     # training
-    criterion = torch.nn.CrossEntropyLoss()
+    weights = torch.tensor(get_classes_weights()).to(device)
+    criterion = torch.nn.CrossEntropyLoss(weight=weights)
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
-    early_stopping = EarlyStopping(patience=PATIENCE, delta=0.1)
+    early_stopping = EarlyStopping(patience=PATIENCE, delta=0.05)
 
     model = model.to(device)
 
@@ -176,6 +189,8 @@ def main():
             print(f"\n\rUnfreezing {MODEL_NAME} feature layers \n", end="", flush=True)
 
         for step, (images, labels) in enumerate(trainloader):
+            print(f"\rBatch {step+1}/{n_batches}", end="", flush=True)
+
             images = images.to(device)
             labels = labels.to(device)
 
@@ -191,7 +206,7 @@ def main():
 
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-            accuracy_train = correct / total
+
             epoch_loss += loss.item()
 
             optimizer.zero_grad()
@@ -200,26 +215,26 @@ def main():
 
             optimizer.step()
 
-            print(
-                f"\rEpoch: {epoch}/{N_EPOCHS} | Batch {step + 1} / {n_batches} | Train Accuracy {accuracy_train:.2f} | Train Loss {epoch_loss/n_batches:.2f}",
-                end="",
-                flush=True,
-            )
-
+        accuracy_train = correct / total
         epoch_loss = epoch_loss / n_batches
+
+        print(
+            f"\rEpoch: {epoch}/{N_EPOCHS} | Train Accuracy {accuracy_train:.2f} | Train Loss {epoch_loss:.2f}",
+            end="",
+            flush=True,
+        )
 
         train_acc_history.append(accuracy_train)
         loss_history.append(epoch_loss)
-        epoch_loss = 0
 
         final_predicted += predicted.tolist()
         final_labels += labels.tolist()
 
-        model.eval()
         val_correct = 0
         val_total = 0
         val_loss = 0
 
+        model.eval()
         with torch.no_grad():
             for _, (data, target) in enumerate(testloader):
                 data = data.to(device)
@@ -229,28 +244,31 @@ def main():
 
                 val_total += target.size(0)
                 val_correct += (predicted == target).sum().item()
-                val_accuracy = val_correct / val_total
 
                 val_batch_loss = criterion(output, target)
                 val_loss += val_batch_loss.item()
 
+        val_accuracy = val_correct / val_total
         val_acc_history.append(val_accuracy)
 
-        val_loss /= n_batches
+        val_loss /= len(testloader)
         val_loss_history.append(val_loss)
-        val_loss = 0
 
-        if val_acc_history[-1] == max(val_acc_history):
-            best_model = model
+        if val_loss == min(val_loss_history):
+            best_loss_model = model
+
+        if val_accuracy == min(val_acc_history):
+            best_acc_model = model
 
         print(
-            f" | Val Accuracy {val_accuracy:.2f} | Val Loss {val_loss_history[-1]:.2f}",
+            f" | Val Accuracy {val_accuracy:.2f} | Val Loss {val_loss:.2f}",
         )
 
-        early_stopping(val_accuracy)
-        if early_stopping.early_stop:
-            print("Early stopping training")
-            break
+        if PATIENCE > 0:
+            early_stopping(val_loss)
+            if early_stopping.early_stop:
+                print("Early stopping training")
+                break
 
         torch.cuda.empty_cache()
 
@@ -260,7 +278,8 @@ def main():
         if not os.path.exists(SAVEDIR):
             os.makedirs(SAVEDIR)
 
-        torch.save(best_model.state_dict(), f"{SAVEDIR}/model.pt")
+        torch.save(best_acc_model.state_dict(), f"{SAVEDIR}/best_acc_model.pt")
+        torch.save(best_loss_model.state_dict(), f"{SAVEDIR}/best_loss_model.pt")
 
         train_metrics = {
             "train_acc_history": train_acc_history,

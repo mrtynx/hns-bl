@@ -46,11 +46,15 @@ def _mobilenet_freeze_features(model):
 
 
 def unfreeze_layers(model):
-    if model.__class__.__name__ == "ResNet":
-        return unfreeze_resnet(model)
-    else:
-        for param in model.parameters():
-            param.requires_grad = True
+    # model_name = model.__class__.__name__
+    # if model_name == "ResNet":
+    #     model = unfreeze_resnet(model)
+    # else:
+    #     for param in model.parameters():
+    #         param.requires_grad = True
+
+    for param in model.parameters():
+        param.requires_grad = True
 
     return model
 
@@ -75,43 +79,42 @@ def freeze_feature_layers(model):
 
 def alexnet_architecture():
     model = models.alexnet(weights=models.AlexNet_Weights.IMAGENET1K_V1)
-    model.classifier[6].out_features = 25
+    model.classifier[6] = torch.nn.Linear(model.classifier[6].in_features, 25)
 
     return model
 
 
 def inception_architecture():
     model = models.inception_v3(weights="DEFAULT")
-    # model.Conv2d_1a_3x3.conv.padding = (1, 1)
-    model.fc.out_features = 25
+    model.fc = torch.nn.Linear(model.fc.in_features, 25)
 
     return model
 
 
 def mobilenet_architecture():
     model = models.mobilenet_v3_large(weights="DEFAULT")
-    model.classifier[3].out_features = 25
+    model.classifier[3] = torch.nn.Linear(model.classifier[3].in_features, 25)
 
     return model
 
 
 def resnet50_architecture():
     model = models.resnet50(weights="DEFAULT")
-    model.fc.out_features = 25
+    model.fc = torch.nn.Linear(model.fc.in_features, 25)
 
     return model
 
 
 def resnet18_architecture():
     model = models.resnet18(weights="DEFAULT")
-    model.fc.out_features = 25
+    model.fc = torch.nn.Linear(model.fc.in_features, 25)
 
     return model
 
 
 def resnet152_architecture():
     model = models.resnet152(weights="DEFAULT")
-    model.fc.out_features = 25
+    model.fc = torch.nn.Linear(model.fc.in_features, 25)
 
     return model
 
