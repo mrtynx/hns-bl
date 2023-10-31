@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import pickle
 from torch.utils.data import DataLoader, Subset, random_split
 from torchvision.datasets import ImageFolder
 
@@ -98,7 +99,7 @@ def _create_split_subset(dataset, split_ratio):
     Returns:
         [torch.utils.data.Subset, torch.utils.data.Subset] : Dva subsety (dedia od DataSet) rozdelene v pozadovanom pomere
     """
-    class_counts = _count_class_samples(dataset, cached=True)
+    class_counts = count_class_samples(dataset, cached=True)
     limit_indices = _get_classes_limit_indices(class_counts)
     indices = _get_indices_array(limit_indices)
     indices_big, indices_small = _split_dataset_indices(indices, split_ratio)
@@ -108,7 +109,7 @@ def _create_split_subset(dataset, split_ratio):
     return subset_big, subset_small
 
 
-def _count_class_samples(dataset, cached=False):
+def count_class_samples(dataset, cached=False):
     """Funkcia spocita pocet vzoriek patriacich do kazdej triedy. Pre rychlost pouzivat 'cached=True', no plati to iba na dataset
         architektury. Ak by to z nejakeho dovodu nefungovalo, treba switchnut spat na 'cached=False'.
 

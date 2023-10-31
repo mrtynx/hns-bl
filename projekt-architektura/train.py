@@ -1,6 +1,7 @@
 import argparse
 import os
 import pickle
+import copy
 
 import torch
 from dataset_architecture import (
@@ -12,6 +13,7 @@ from early_stopping import EarlyStopping
 from models_architecture import *
 from torch.utils.data import DataLoader
 from torchvision import transforms
+from torchvision.transforms import v2
 
 TRAINED_MODELS_DIR = "trained_models"
 DATASET_PTH = "architectural-styles-dataset/"
@@ -37,6 +39,7 @@ parser.add_argument(
 
 parser.add_argument("-batch_size", type=int, default=32)
 parser.add_argument("-lr", type=float, default=0.00001)
+parser.add_argument("-lr_factor", type=int, default=1)
 parser.add_argument("-epochs", type=int, default=10)
 parser.add_argument("-no_save", action="store_false")
 parser.add_argument("-test_split", type=float, default=0.2)
@@ -67,6 +70,7 @@ def main():
     COMPILE = args.compile
     PATIENCE = args.patience
     UNIFORM = args.uniform
+    LR_FACTOR = args.lr_factor
 
     # models selection
     if (
@@ -82,7 +86,7 @@ def main():
     elif args.model == "mobilenet":
         model = mobilenet_architecture()
     elif args.model == "series-parallel":
-        model = DeepSeriesParallelCNN(num_classes=25)
+        model = SerialParallelCNN()
     elif args.model == "serial":
         model = DeepSerialCNN(num_classes=25)
 
@@ -107,8 +111,8 @@ def main():
         RESIZE = (299, 299)
         CROP = (299, 299)
     else:
-        RESIZE = (512, 512)
-        CROP = (448, 448)
+        RESIZE = (256, 256)
+        CROP = (224, 224)
 
     transform = transforms.Compose(
         [
@@ -123,10 +127,12 @@ def main():
     if AUGMENT:
         augmentations = transforms.Compose(
             [
-                transforms.v2.RandomPosterize(bits=2),
-                transforms.v2.RandomAdjustSharpness(sharpness_factor=2),
-                transforms.v2.RandomAutocontrast(),
-                transforms.v2.RandomEqualize(),
+                v2.RandomPosterize(bits=2),
+                v2.RandomAdjustSharpness(sharpness_factor=2),
+                v2.RandomAutocontrast(),
+                v2.RandomEqualize(),
+                transforms.RandomRotation(10),
+                transforms.RandomHorizontalFlip(),
             ]
         )
 
@@ -179,6 +185,9 @@ def main():
     val_loss_history = []
 
     for epoch in range(1, N_EPOCHS + 1):
+        if epoch // 5 == 0:
+            LEARNING_RATE /= LR_FACTOR
+            optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
         epoch_loss = 0
         n_batches = len(trainloader)
         correct = 0
@@ -258,14 +267,11 @@ def main():
         val_loss /= len(testloader)
         val_loss_history.append(val_loss)
 
-        if val_loss == min(val_loss_history):
-            best_loss_model = model
-
-        if val_accuracy == min(val_acc_history):
-            best_acc_model = model
+        if val_loss <= min(val_loss_history):
+            best_loss_model = copy.deepcopy(model)
 
         print(
-            f" | Val Accuracy {val_accuracy:.2f} | Val Loss {val_loss:.2f}",
+            f" | Val Accuracy {val_accuracy:.2f} | Val Loss {val_loss:.2f} | LR {LEARNING_RATE:.10f}",
         )
 
         if PATIENCE > 0:
@@ -282,7 +288,6 @@ def main():
         if not os.path.exists(SAVEDIR):
             os.makedirs(SAVEDIR)
 
-        torch.save(best_acc_model.state_dict(), f"{SAVEDIR}/best_acc_model.pt")
         torch.save(best_loss_model.state_dict(), f"{SAVEDIR}/best_loss_model.pt")
 
         train_metrics = {

@@ -251,3 +251,77 @@ class DeepSerialCNN(torch.nn.Module):
         out = self.fc_layers(out)
         out = F.log_softmax(out, dim=1)
         return out
+
+
+class Fire(nn.Module):
+    def __init__(
+        self, in_channels, squeeze_channels, expand1x1_channels, expand3x3_channels
+    ):
+        super(Fire, self).__init__()
+        self.squeeze = nn.Conv2d(in_channels, squeeze_channels, kernel_size=1)
+        self.squeeze_activation = nn.ReLU(inplace=True)
+        self.expand1x1 = nn.Conv2d(squeeze_channels, expand1x1_channels, kernel_size=1)
+        self.expand1x1_activation = nn.ReLU(inplace=True)
+        self.expand3x3 = nn.Conv2d(
+            squeeze_channels, expand3x3_channels, kernel_size=3, padding=1
+        )
+        self.expand3x3_activation = nn.ReLU(inplace=True)
+
+    def forward(self, x):
+        x = self.squeeze_activation(self.squeeze(x))
+        return torch.cat(
+            [
+                self.expand1x1_activation(self.expand1x1(x)),
+                self.expand3x3_activation(self.expand3x3(x)),
+            ],
+            1,
+        )
+
+
+# Define the Residual Block with Fire Modules
+class HybridBlock(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(HybridBlock, self).__init__()
+
+        # Main path has a Fire module
+        self.fire = Fire(
+            in_channels, in_channels // 2, out_channels // 2, out_channels // 2
+        )
+
+        # Residual path
+        self.shortcut = nn.Sequential()
+        if in_channels != out_channels:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(
+                    in_channels, out_channels, kernel_size=1, stride=1, bias=False
+                ),
+                nn.BatchNorm2d(out_channels),
+            )
+
+    def forward(self, x):
+        out = self.fire(x)
+
+        # Adding the shortcut to the output
+        out += self.shortcut(x)
+
+        return nn.ReLU()(out)
+
+
+# Example Hybrid Network
+class HybridNet(nn.Module):
+    def __init__(self, num_classes=25):
+        super(HybridNet, self).__init__()
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
+        self.hybrid1 = HybridBlock(32, 64)
+        self.hybrid2 = HybridBlock(64, 128)
+        self.pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(128, num_classes)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.hybrid1(x)
+        x = self.hybrid2(x)
+        x = self.pool(x)
+        x = x.view(x.size(0), -1)
+        x = self.fc(x)
+        return x
