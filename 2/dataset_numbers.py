@@ -1,25 +1,49 @@
 import numpy as np
 from scipy.io import loadmat
-from torch.utils.data import TensorDataset
+from torch.utils.data import TensorDataset, Dataset
 import torch
+
+
+class NumberSequenceDataset(Dataset):
+    def __init__(self, sequences, labels):
+        self.sequences = sequences
+        self.labels = labels
+
+    def __len__(self):
+        return len(self.sequences)
+
+    def __getitem__(self, index):
+        sequence = torch.tensor(self.sequences[index], dtype=torch.float32)
+        label = torch.tensor(self.labels[index], dtype=torch.long)
+
+        return sequence, label
 
 
 def get_numbers_dataset(path: str):
     data = load_seq(path)
-    x_train, y_train, x_test, y_test = clear_samples(*data)
+
+    x_train, y_train, x_test, y_test = clean_samples(*data)
+
     seq_len = max_seq_len(x_train, x_test)
-    x_train_seq = pad_sequences(x_train, seq_len)
-    x_test_seq = pad_sequences(x_test, seq_len)
 
-    x_train_T = torch.tensor(x_train_seq, dtype=torch.float32)
-    y_train_T = torch.tensor(y_train, dtype=torch.long)
-    x_test_T = torch.tensor(x_test_seq, dtype=torch.float32)
-    y_test_T = torch.tensor(y_test, dtype=torch.long)
+    x_train = pad_sequences(x_train, seq_len).transpose(0, 2, 1)
+    x_test = pad_sequences(x_test, seq_len).transpose(0, 2, 1)
 
-    train_ds = TensorDataset(x_train_T, y_train_T)
-    test_ds = TensorDataset(x_test_T, y_test_T)
+    x_train = convert_dtype(x_train)
+    x_test = convert_dtype(x_test)
 
-    return train_ds, test_ds
+    x_train = normalize(x_train)
+    x_test = normalize(x_test)
+
+    # x_train_T = torch.tensor(x_train, dtype=torch.float32)
+    # y_train_T = torch.tensor(y_train, dtype=torch.long)
+    # x_test_T = torch.tensor(x_test, dtype=torch.float32)
+    # y_test_T = torch.tensor(y_test, dtype=torch.long)
+
+    # train_ds = TensorDataset(x_train_T, y_train_T)
+    # test_ds = TensorDataset(x_test_T, y_test_T)
+
+    return x_train, y_train, x_test, y_test
 
 
 def load_seq(path: str):
@@ -32,7 +56,7 @@ def load_seq(path: str):
     return x_train, y_train, x_test, y_test
 
 
-def clear_samples(x_train, y_train, x_test, y_test):
+def clean_samples(x_train, y_train, x_test, y_test):
     train_corrupted_indices = [0, 1, 2, 3, 4, 5, 75]
     test_corrupted_indices = [97]
 
@@ -40,11 +64,39 @@ def clear_samples(x_train, y_train, x_test, y_test):
     x_test = np.squeeze(x_test, axis=1)
 
     x_train = np.delete(x_train, train_corrupted_indices, axis=0)
-    y_train = np.delete(y_train, train_corrupted_indices)
     x_test = np.delete(x_test, test_corrupted_indices, axis=0)
+    y_train = np.delete(y_train, train_corrupted_indices)
     y_test = np.delete(y_test, test_corrupted_indices)
 
+    y_train -= 1
+    y_test -= 1
+
     return x_train, y_train, x_test, y_test
+
+
+def convert_dtype(seq):
+    f32_arr = np.zeros_like(seq, dtype=np.float32)
+    for i in range(len(seq)):
+        f32_arr[i, :, 0] = seq[i, :, 0]
+        f32_arr[i, :, 1] = seq[i, :, 1]
+
+    return f32_arr
+
+
+def normalize(seq):
+    max_val = 0
+    for i in range(len(seq)):
+        if np.any(seq[i, :, 0] > max_val):
+            max_val = max(seq[i, :, 0])
+
+        if np.any(seq[i, :, 1] > max_val):
+            max_val = max(seq[i, :, 1])
+
+    for i in range(len(seq)):
+        seq[i, :, 0] /= max_val
+        seq[i, :, 1] /= max_val
+
+    return seq
 
 
 def max_seq_len(x_train, x_test):
@@ -59,15 +111,30 @@ def max_seq_len(x_train, x_test):
         return x_test_len
 
 
+# def pad_sequences(seq, seq_sz):
+#     padded_array = np.zeros((len(seq), 2, seq_sz))
+#     for i in range(len(seq)):
+#         pad_width = seq_sz - len(seq[i][0])
+#         padded_array[i][0] = np.pad(
+#             seq[i][0], (0, pad_width), "constant", constant_values=(0)
+#         )
+#         padded_array[i][1] = np.pad(
+#             seq[i][1], (0, pad_width), "constant", constant_values=(0)
+#         )
+
+#     return padded_array
+
+
 def pad_sequences(seq, seq_sz):
     padded_array = np.zeros((len(seq), 2, seq_sz))
     for i in range(len(seq)):
-        pad_width = seq_sz - len(seq[i][0])
+        arr_len = len(seq[i][0])
+        pad_width = seq_sz - arr_len
         padded_array[i][0] = np.pad(
-            seq[i][0], (0, pad_width), "constant", constant_values=(0)
+            seq[i][0], (pad_width, 0), "constant", constant_values=(0,)
         )
         padded_array[i][1] = np.pad(
-            seq[i][1], (0, pad_width), "constant", constant_values=(0)
+            seq[i][1], (pad_width, 0), "constant", constant_values=(0,)
         )
 
     return padded_array
