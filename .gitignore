@@ -15,3 +15,5 @@ SpeechCommands/*
 2/scratchpad.ipynb
 2/__pycache__
 2/doc
+speech-commands/audio_dataset_files
+speech-commands/scratchpad.ipynb
