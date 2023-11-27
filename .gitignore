@@ -18,5 +18,3 @@ SpeechCommands/*
 speech-commands/audio_dataset_files
 speech-commands/scratchpad.ipynb
 detectors/cupImages
-detectors/yolov5/datasets
-detectors/yolov5/runs
