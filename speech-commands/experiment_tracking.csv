@@ -1,0 +1,4 @@
+lstm_units, batch_size, val_loss, val_acc ,dropout
+64,64,0.18,0.83,0.1
+128,64,0.18,0.85,0.1
+64,64,0.20,0.82,0.5
