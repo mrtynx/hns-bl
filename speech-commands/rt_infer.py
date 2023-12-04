@@ -1,13 +1,17 @@
+import sys
+import time
+
 import numpy as np
 import sounddevice as sd
 import torch
 from models import CNNLSTMModel
-import time
 
 FS = 8000
 
 model = CNNLSTMModel(1, 64, 2, 4)
-model.load_state_dict(torch.load(r"C:\FEI\HNS\hns-bl\speech-commands\best_model.pt"))
+model.load_state_dict(
+    torch.load(r"C:\FEI\ING\S3\HNS\speech-commands\runs\exp1\best_model.pt")
+)
 model.eval()
 
 label_mapping = ["go", "left", "right", "stop"]
@@ -27,26 +31,24 @@ def audio_callback(indata, frames, time, status):
 
     with torch.no_grad():
         nn_out = model(audio_tensor).squeeze(dim=0).detach().numpy()
-        nn_out[1] -= 0.5  # Treshold left
+        # nn_out[1] -= 0.5  # Treshold left
+        # print(nn_out)
         index = np.argmax(nn_out)
-        print(nn_out)
 
         if nn_out[index] > 0.5:
             print(f"\r{label_mapping[index]}\n", end="", flush=True)
-        else:
-            print(f"Listening... \n")
 
 
 with sd.InputStream(
     callback=audio_callback,
     channels=1,
-    samplerate=2 * FS,
+    samplerate=FS,
     dtype="float32",
     blocksize=FS,
 ):
-    print("Audio stream is active. Press Ctrl+C to stop.")
+    print("Audio stream is active. Listening to voice commands...\n")
     try:
         while True:
-            pass  # Keep the program running to capture audio continuously
+            sd.sleep(100)
     except KeyboardInterrupt:
         print("\nAudio stream stopped.")

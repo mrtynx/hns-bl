@@ -155,7 +155,13 @@ def parse_pkl_metrics(file):
 
 
 def plot_train_perf(
-    model, path=None, train_loss=None, train_acc=None, val_loss=None, val_acc=None
+    model,
+    path=None,
+    train_loss=None,
+    train_acc=None,
+    val_loss=None,
+    val_acc=None,
+    save_path=None,
 ):
     if path is not None:
         train_loss, train_acc, val_loss, val_acc = parse_pkl_metrics(path)
@@ -170,6 +176,8 @@ def plot_train_perf(
     plt.ylabel("loss")
     plt.legend()
     plt.grid(True)
+    if save_path is not None:
+        plt.savefig(f"{save_path}/loss.png")
 
     plt.figure(figsize=(8, 6))
     plt.plot(train_acc, label="training", color="cyan")
@@ -180,3 +188,5 @@ def plot_train_perf(
     plt.ylabel("accuracy")
     plt.legend()
     plt.grid(True)
+    if save_path is not None:
+        plt.savefig(f"{save_path}/accuracy.png")
