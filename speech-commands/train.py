@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from audio_dataset import AudioDataset
-from models import CNNLSTMModel
+from models import CNNLSTMModel, M5
 from pretty_confusion_matrix import pp_matrix_from_data
 from torch.utils.data import DataLoader
 
@@ -26,6 +26,7 @@ parser.add_argument("-shuffle", action="store_true")
 parser.add_argument("-save_model", action="store_true")
 parser.add_argument("-name", type=str, default="")
 parser.add_argument("-use_specgram", action="store_true")
+parser.add_argument("-model", choices=["LSTM", "M5"], default="LSTM")
 
 
 def main():
@@ -38,6 +39,7 @@ def main():
     NAME = args.name
     SAVE_MODEL = True if len(NAME) > 0 else args.save_model
     USE_SPECGRAM = args.use_specgram
+    MODEL = args.model
 
     if torch.cuda.is_available():
         DEVICE = torch.device("cuda:0")
@@ -77,14 +79,21 @@ def main():
         test_ds, batch_size=32, shuffle=False, collate_fn=train_ds.collate_fn
     )
 
-    input_size = 128 if USE_SPECGRAM else 1  # Max specgram freq is 128
-    hidden_size = 64
-    num_layers = 2
-    output_size = 4
+    if MODEL == "LSTM":
+        input_size = 128 if USE_SPECGRAM else 1  # Max specgram freq is 128
+        hidden_size = 64
+        num_layers = 2
+        output_size = 4
+        model = CNNLSTMModel(
+            input_size, hidden_size, num_layers, output_size, use_specgram=USE_SPECGRAM
+        ).to(DEVICE)
 
-    model = CNNLSTMModel(
-        input_size, hidden_size, num_layers, output_size, use_specgram=USE_SPECGRAM
-    ).to(DEVICE)
+    elif MODEL == "M5":
+        model = M5(use_specgram=USE_SPECGRAM).to(DEVICE)
+
+    else:
+        print('Incorrect model selection. Available models are "LSTM" and "M5"\n')
+        return
 
     # criterion = nn.BCEWithLogitsLoss()
     criterion = nn.BCELoss()
